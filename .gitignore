@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Env / secrets
+.env
+backend/.env
+*.local
+
+# Cognee local stores
+.cognee_system/
+.data_storage/
+cognee_data/
+*.lance/
+*.sqlite
+*.db
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+graph.html
+
+# Upstream Cognee clone (separate repo, used for OSS-track PRs — not part of Hindsight)
+cognee/
+# Scratch notes
+scratch_issues.txt
