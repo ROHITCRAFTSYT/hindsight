@@ -1,137 +1,163 @@
-# 🧠 Hindsight — the AI second brain that never wakes up with amnesia
+<div align="center">
 
-> Built for **"The Hangover Part AI: Where's My Context?"** — the Cognee × WeMakeDevs hackathon (Jun 29 – Jul 5, 2026).
-> Theme: *Your AI woke up in Vegas with no memory of last night. Build AI that doesn't forget.*
+# 🧠 Hindsight
 
-Hindsight is a **second-brain copilot** powered by [Cognee](https://www.cognee.ai)'s memory layer. Throw in your
-notes, files, and URLs — Hindsight ingests them into a **hybrid graph + vector memory**, lets you **ask anything in
-natural language**, **learns from your feedback**, and **forgets** what's stale. And it shows you the living
-**knowledge graph** it builds in real time, so you can literally *see* your AI remembering.
+### the AI second brain that never wakes up with amnesia
 
-It exercises the entire Cognee memory lifecycle, which is exactly what the hackathon asks for:
+*Your AI woke up in Vegas with no memory of last night. Hindsight is the one that remembers.*
 
-| Lifecycle | Cognee Cloud endpoint | In Hindsight |
-|-----------|-----------|--------------|
-| 🟢 **Remember** | `POST /api/v1/remember` | Ingest panel — drop text, files, or URLs into memory |
-| 🔵 **Recall**   | `POST /api/v1/recall`   | Ask-anything chat over your knowledge graph |
-| 🟣 **Improve**  | `POST /api/v1/remember/entry` (👍/👎 typed feedback) · `POST /api/v1/improve` ("Memify" enrichment) | Vote on answers to re-weight memory; Memify button enriches the whole graph |
-| 🔴 **Forget**   | `POST /api/v1/forget`   | Prune a memory by `data_id`, or wipe everything, with one click |
+[![CI](https://github.com/ROHITCRAFTSYT/hindsight/actions/workflows/ci.yml/badge.svg)](https://github.com/ROHITCRAFTSYT/hindsight/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-9d4edd.svg)](LICENSE)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-25f4ee.svg)
+![Node 18+](https://img.shields.io/badge/node-18%2B-2bd576.svg)
+![Memory: Cognee Cloud](https://img.shields.io/badge/memory-Cognee%20Cloud-ff4dd2.svg)
 
-In **Cognee Cloud** mode, Hindsight calls the Cognee Cloud REST API directly (`X-Api-Key`
-auth) — the same contract the Cognee SDK's `CloudClient` uses. The live knowledge-graph
-visualization is fetched from `GET /api/v1/datasets/{id}/graph`. In **self-hosted** mode it
-calls the embedded Cognee Python SDK (`remember`/`recall`/`improve`/`forget`) instead.
+Built for **"The Hangover Part AI: Where's My Context?"** — the [Cognee](https://www.cognee.ai) × [WeMakeDevs](https://www.wemakedevs.org/hackathons/cognee) hackathon.
+
+<img src="docs/assets/demo.gif" alt="Hindsight — remember, recall, improve, forget, live on Cognee Cloud" width="820"/>
+
+</div>
 
 ---
 
-## ✨ Why it can win
+Hindsight is a **second-brain copilot** powered by Cognee's memory layer. Throw in your notes, files,
+and URLs — it ingests them into a **hybrid graph + vector memory**, lets you **ask anything in natural
+language**, **learns from your 👍/👎 feedback**, and **forgets** what's stale. And it renders the living
+**knowledge graph** it builds in real time, so you can literally *see* your AI remembering.
 
-- **Effective use of Cognee's memory APIs** — all four lifecycle ops are first-class UI actions, not buried calls.
-- **Killer demo** — a live, force-directed **knowledge-graph visualization** that grows as you remember and shrinks as you forget.
-- **Impact** — a genuinely useful personal knowledge tool, not a toy.
-- **Polish** — neon "Vegas" theme that leans into the hangover narrative without being a gimmick.
-- **Runs anywhere** — points at **Cognee Cloud** by default (this hackathon's Cloud track) but also runs fully self-hosted, and ships a **zero-key DEMO_MODE** so judges can click around instantly.
+It exercises the **entire Cognee memory lifecycle** — which is exactly what the hackathon asks for:
+
+| Lifecycle | Cognee Cloud endpoint | In Hindsight |
+|-----------|-----------------------|--------------|
+| 🟢 **Remember** | `POST /api/v1/remember` | Ingest panel — drop in text, files, or URLs |
+| 🔵 **Recall**   | `POST /api/v1/recall`   | Ask-anything chat that reasons over the graph |
+| 🟣 **Improve**  | `POST /api/v1/remember/entry` (👍/👎 typed feedback) · `POST /api/v1/cognify` (Memify ✨) | Vote to re-weight memory; Memify enriches the whole graph |
+| 🔴 **Forget**   | `POST /api/v1/forget`   | Prune a memory by `data_id`, or wipe everything |
+
+> In **Cognee Cloud** mode, Hindsight calls the Cognee Cloud REST API directly (`X-Api-Key` auth) and
+> pulls the live graph from `GET /api/v1/datasets/{id}/graph`. In **self-hosted** mode it drives the
+> embedded Cognee Python SDK instead. Same UI, one env var apart.
+
+---
+
+## 🕸️ The knowledge graph is the point
+
+Most memory demos are a black box. Hindsight makes memory **visible**: every fact you remember becomes
+entities and relationships you can see, query, and prune. Below is a **real graph** built live on Cognee
+Cloud from three sentences about a Vegas trip — `priya → booked → hotel rooms`, `alex → rented → red
+convertible`, all tied to the `wemakedevs cognee hackathon`.
+
+<div align="center">
+<img src="docs/assets/knowledge-graph.png" alt="Live knowledge graph from Cognee Cloud" width="820"/>
+</div>
+
+---
+
+## ✨ Why it stands out
+
+- **Effective use of Cognee's memory APIs** — all four lifecycle ops are first-class, user-triggered UI actions, not buried calls. Verified end-to-end against a **live Cognee Cloud tenant**.
+- **Killer demo** — a force-directed knowledge graph that **grows as you remember and shrinks as you forget**, in real time.
+- **Real impact** — a genuinely useful personal-knowledge tool; the pattern generalizes to any agent that needs durable memory.
+- **Production-minded** — Dockerized, CI-gated (lint + tests + build), three runtime modes, graceful cold-start handling.
+- **Runs anywhere** — Cognee Cloud, fully self-hosted, or a **zero-key demo mode** so judges can click around in seconds.
 
 ---
 
 ## 🏗️ Architecture
 
-```
-┌─────────────┐     HTTP/JSON      ┌──────────────────┐     Cognee SDK     ┌────────────────┐
-│  React UI    │  ───────────────►  │  FastAPI backend │  ───────────────►  │  Cognee memory  │
-│  (Vite)      │                    │  app/main.py     │                    │  Cloud or local │
-│  graph viz   │  ◄───────────────  │  cognee_client   │  ◄───────────────  │  graph + vector │
-└─────────────┘   nodes / edges     └──────────────────┘     results        └────────────────┘
-```
+<div align="center">
+<img src="docs/assets/architecture.svg" alt="Hindsight architecture" width="900"/>
+</div>
 
-- **`backend/`** — FastAPI service wrapping the Cognee lifecycle (`remember` / `recall` / `improve` / `forget`)
-  plus a `/graph` endpoint that exports nodes & edges for visualization. Falls back from the new lifecycle API
-  to the legacy `add` / `cognify` / `search` API automatically, and to an in-memory **DEMO_MODE** when no keys are set.
-- **`frontend/`** — Vite + React app: ingest panel, recall chat, live knowledge-graph canvas, and memory management.
+- **`backend/`** — FastAPI service. [`cognee_client.py`](backend/app/cognee_client.py) is the single Cognee integration point: a `CloudTransport` (httpx, `X-Api-Key`) for Cognee Cloud, the embedded SDK for self-hosted, and an in-memory graph that powers demo mode + an optimistic UI mirror. Auto-detects the mode and handles Cloud cold-starts with retries.
+- **`frontend/`** — Vite + React app: ingest panel, recall chat, a live force-directed graph canvas, and memory management, in a cohesive neon "Vegas" theme.
 
 ---
 
 ## 🚀 Quickstart
 
-### 0. Prerequisites
-- Python 3.10–3.14 (tested on 3.11)
-- Node 18+ / npm
-
-### 1. Backend
+### Option A — Docker (one command)
 
 ```bash
+cp .env.example backend/.env      # add your Cognee Cloud key, or leave blank for demo mode
+docker compose up --build
+```
+
+Open **http://localhost:8080**. The frontend (nginx) serves the built app and proxies `/api` to the backend.
+
+### Option B — Local dev
+
+```bash
+# 1) Backend  (Python 3.10+)
 cd backend
 python -m venv .venv
-# Windows:  .venv\Scripts\activate
-# macOS/Linux:  source .venv/bin/activate
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp ../.env.example .env   # then edit .env
-uvicorn app.main:app --reload --port 8000
-```
+cp ../.env.example .env             # optional — leave blank for demo mode
+uvicorn app.main:app --reload --port 8000    # docs at http://localhost:8000/docs
 
-Open http://localhost:8000/docs for the interactive API.
-
-### 2. Frontend
-
-```bash
+# 2) Frontend  (Node 18+)  — in a second terminal
 cd frontend
 npm install
-npm run dev
+npm run dev                         # http://localhost:5173
 ```
 
-Open http://localhost:5173.
-
-### 3. (Optional) Seed the demo
-
-```bash
-cd backend
-python -m app.seed
-```
+No keys? Hindsight auto-runs in **demo mode** (a zero-dependency in-memory mock), so the whole UI works offline.
 
 ---
 
-## 🔑 Configuration (`.env`)
+## 🔑 Configuration
 
-Hindsight works in three modes, controlled by `.env`. See [`.env.example`](.env.example).
+Three modes, selected automatically from `backend/.env` (see [`.env.example`](.env.example)):
 
-**A) Cognee Cloud (this hackathon's Cloud track — recommended)**
-1. Sign up at https://platform.cognee.ai and redeem the free Developer plan with code **`COGNEE-35`**.
-2. Create an API key and set:
-   ```env
-   COGNEE_CLOUD_API_KEY=your_cloud_key
-   COGNEE_SERVICE_URL=https://api.cognee.ai   # confirm the host shown in your dashboard
-   ```
-   Hindsight talks to the Cognee Cloud REST API directly (`X-Api-Key`).
-
-**B) Self-hosted / open source** — runs Cognee embedded (SQLite + LanceDB), only needs an LLM key
-(works with Groq, OpenAI, or any supported provider):
+**A) Cognee Cloud — the hackathon Cloud track (recommended)**
 ```env
-LLM_API_KEY=gsk_...                          # e.g. a Groq key
+COGNEE_CLOUD_API_KEY=your_cloud_key
+COGNEE_SERVICE_URL=https://<your-tenant>.cognee.ai   # the host shown in your dashboard
+```
+Sign up at [platform.cognee.ai](https://platform.cognee.ai) and redeem the free Developer plan with code **`COGNEE-35`**.
+
+**B) Self-hosted / open source** — embedded Cognee SDK; any LLM provider (Groq, OpenAI, …):
+```env
+LLM_API_KEY=gsk_...
 LLM_PROVIDER=groq
 LLM_MODEL=groq/llama-3.3-70b-versatile
 ```
+> Self-hosted mode also needs the SDK: `pip install "cognee[groq]"`.
 
-**C) DEMO_MODE** — zero keys, in-memory mock so judges can explore the UI instantly:
+**C) Demo mode** — zero keys:
 ```env
 DEMO_MODE=true
 ```
-
-If no keys are present, Hindsight auto-falls back to DEMO_MODE so the app never hard-crashes on a fresh clone.
 
 ---
 
 ## 🧩 API surface
 
-| Method | Endpoint        | Lifecycle | Body |
-|--------|-----------------|-----------|------|
-| POST   | `/api/remember` | remember  | `{ "data": "...", "dataset": "main", "session_id"?: "..." }` |
-| POST   | `/api/recall`   | recall    | `{ "query": "...", "search_type"?: "GRAPH_COMPLETION", "top_k"?: 10 }` |
-| POST   | `/api/improve`  | improve   | `{ "query": "...", "answer": "...", "vote": "up"\|"down", "note"?: "..." }` |
-| POST   | `/api/improve/enrich` | improve | `{ "dataset"?: "main" }` — the "Memify" enrichment pass |
-| POST   | `/api/forget`   | forget    | `{ "node_id"?: "<data_id>", "dataset"?: "...", "all"?: false }` |
-| GET    | `/api/memories` | —         | `{ memories: [{ id, label }] }` — the Forget panel's list |
-| GET    | `/api/graph`    | —         | `{ nodes, edges }` for the live visualization |
-| GET    | `/api/health`   | —         | mode + cloud connectivity |
+| Method | Endpoint | Lifecycle | Body |
+|--------|----------|-----------|------|
+| `POST` | `/api/remember` | remember | `{ "data": "...", "dataset": "main" }` |
+| `POST` | `/api/recall` | recall | `{ "query": "...", "search_type"?: "GRAPH_COMPLETION", "top_k"?: 10 }` |
+| `POST` | `/api/improve` | improve | `{ "query": "...", "answer": "...", "vote": "up"\|"down", "note"?: "..." }` |
+| `POST` | `/api/improve/enrich` | improve | `{ "dataset"?: "main" }` — the Memify ✨ pass |
+| `POST` | `/api/forget` | forget | `{ "node_id"?: "<data_id>", "dataset"?: "...", "all"?: false }` |
+| `GET`  | `/api/memories` | — | `{ memories: [{ id, label }] }` — the Forget panel |
+| `GET`  | `/api/graph` | — | `{ nodes, edges }` for the live visualization |
+| `GET`  | `/api/health` | — | mode + cloud connectivity |
+
+Interactive docs (Swagger) at `/docs` when the backend is running.
+
+---
+
+## 🧪 Tests & CI
+
+```bash
+cd backend
+DEMO_MODE=true python -m pytest      # full lifecycle smoke tests, no keys needed
+ruff check app tests                 # lint
+```
+
+[GitHub Actions](.github/workflows/ci.yml) runs backend lint + tests and a frontend build on every push. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev workflow.
 
 ---
 
@@ -141,35 +167,40 @@ If no keys are present, Hindsight auto-falls back to DEMO_MODE so the app never 
 hindsight/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py          # FastAPI routes
-│   │   ├── cognee_client.py # Cognee lifecycle wrapper (+ fallbacks + demo)
-│   │   ├── models.py        # Pydantic request/response models
-│   │   └── seed.py          # demo data loader
+│   │   ├── main.py           # FastAPI routes
+│   │   ├── cognee_client.py  # Cognee integration (cloud REST · SDK · demo)
+│   │   ├── models.py         # Pydantic request/response models
+│   │   └── seed.py           # demo data loader
+│   ├── tests/                # pytest lifecycle smoke tests
+│   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx
-│   │   ├── api.js
-│   │   └── components/      # GraphView, RecallPanel, IngestPanel, MemoryPanel
+│   │   ├── App.jsx · api.js
+│   │   └── components/       # GraphView · RecallPanel · IngestPanel · MemoryPanel
+│   ├── Dockerfile · nginx.conf
 │   └── package.json
 ├── docs/
-│   ├── BLOG.md              # Best Blog track submission
-│   └── SOCIAL.md            # Social Media Buzz posts
-├── .env.example
-└── LICENSE                  # MIT (Open Source track)
+│   ├── DEMO.md               # 2-minute demo script
+│   ├── BLOG.md · SOCIAL.md   # Best Blog + Social Buzz tracks
+│   └── assets/               # diagram, graph, demo GIF
+├── docker-compose.yml
+├── .github/workflows/ci.yml
+└── LICENSE                   # MIT (Open Source track)
 ```
 
 ---
 
-## 🏆 Hackathon checklist
+## 🏆 Hackathon tracks
 
-- [x] Uses Cognee's `remember` / `recall` / `improve` / `forget` lifecycle
-- [x] Works on **Cognee Cloud** (Cloud track)
-- [x] Open-source under MIT (Open Source track)
-- [x] Knowledge-graph visualization for the demo
-- [x] Blog post (`docs/BLOG.md`) for the Best Blog track
-- [x] Social posts (`docs/SOCIAL.md`) for the Social Buzz track
+- [x] **Best Use of Cognee Cloud** — talks to the Cognee Cloud REST API directly; all four lifecycle ops verified live.
+- [x] **Best Use of Open Source** — MIT licensed; runs fully self-hosted.
+- [x] Live knowledge-graph visualization for the demo ([`docs/DEMO.md`](docs/DEMO.md)).
+- [x] **Best Blog** — [`docs/BLOG.md`](docs/BLOG.md).
+- [x] **Social Buzz** — [`docs/SOCIAL.md`](docs/SOCIAL.md).
+
+---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Built with [Cognee](https://www.cognee.ai). 🧠✨

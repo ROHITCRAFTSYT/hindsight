@@ -1,0 +1,29 @@
+# Hindsight — full stack in one command:
+#   1. Put your Cognee Cloud credentials in backend/.env (see .env.example)
+#   2. docker compose up --build
+#   3. Open http://localhost:8080
+#
+# The frontend (nginx) serves the built SPA and proxies /api to the backend.
+
+services:
+  backend:
+    build: ./backend
+    # Optional so the stack still boots (in demo mode) before you add keys.
+    # Requires Docker Compose v2.24+. On older Compose, create backend/.env first.
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      # Allow the frontend origin through CORS (direct hits to :8000).
+      CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped

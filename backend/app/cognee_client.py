@@ -26,7 +26,7 @@ mirror graph still updates, so a live demo never hard-crashes.
 
 from __future__ import annotations
 
-import io
+import asyncio
 import logging
 import os
 import re
@@ -117,6 +117,10 @@ def _search_type(name: Optional[str]):
 # ──────────────────────────────────────────────────────────────────────────
 
 
+_COLD_START_RETRY = 3
+_GATEWAY_STATUSES = {502, 503, 504}
+
+
 class CloudTransport:
     def __init__(self, base_url: str, api_key: str) -> None:
         self.base = base_url.rstrip("/")
@@ -130,11 +134,45 @@ class CloudTransport:
             base_url=self.base, headers=self.headers, timeout=timeout, follow_redirects=True
         )
 
+    async def _send(self, method: str, path: str, *, idempotent: bool = False,
+                    timeout: float = 120.0, **kw):
+        """Send a request, retrying through Cognee Cloud cold-starts.
+
+        Freshly-woken tenants transiently return nginx 404s (upstream not up
+        yet); idempotent reads also retry gateway 5xx. Backs off between tries.
+        """
+        delay = 1.2
+        last: Any = None
+        for attempt in range(_COLD_START_RETRY):
+            try:
+                async with self._client(timeout=timeout) as c:
+                    resp = await c.request(method, path, **kw)
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout,
+                    httpx.ReadError) as exc:
+                last = exc
+                if attempt < _COLD_START_RETRY - 1:
+                    await asyncio.sleep(delay)
+                    delay *= 1.7
+                    continue
+                raise
+            retriable = resp.status_code == 404 or (
+                idempotent and resp.status_code in _GATEWAY_STATUSES
+            )
+            if retriable and attempt < _COLD_START_RETRY - 1:
+                logger.info("Cloud %s %s -> %s; retrying (cold start).", method, path, resp.status_code)
+                await asyncio.sleep(delay)
+                delay *= 1.7
+                continue
+            resp.raise_for_status()
+            return resp
+        if last:
+            raise last
+        return resp  # pragma: no cover
+
     async def health(self) -> bool:
         try:
-            async with self._client(timeout=15.0) as c:
-                r = await c.get("/api/health")
-                return r.status_code < 400
+            resp = await self._send("GET", "/api/health", idempotent=True, timeout=15.0)
+            return resp.status_code < 400
         except Exception as exc:  # noqa: BLE001
             logger.info("Cloud health probe failed for %s: %s", self.base, exc)
             return False
@@ -143,11 +181,10 @@ class CloudTransport:
         form: dict[str, Any] = {"datasetName": dataset_name}
         if session_id:
             form["session_id"] = session_id
-        files = {"data": ("data.txt", io.BytesIO(data.encode("utf-8")), "text/plain")}
-        async with self._client() as c:
-            r = await c.post("/api/v1/remember", data=form, files=files)
-            r.raise_for_status()
-            return _safe_json(r)
+        # Pass raw bytes (not BytesIO) so a retry can re-send the body.
+        files = {"data": ("data.txt", data.encode("utf-8"), "text/plain")}
+        resp = await self._send("POST", "/api/v1/remember", data=form, files=files)
+        return _safe_json(resp)
 
     async def remember_entry(
         self, entry: dict, dataset_name: str, session_id: Optional[str] = None
@@ -158,10 +195,8 @@ class CloudTransport:
             "session_id": session_id,
             "skill_improvement": None,
         }
-        async with self._client() as c:
-            r = await c.post("/api/v1/remember/entry", json=payload)
-            r.raise_for_status()
-            return _safe_json(r)
+        resp = await self._send("POST", "/api/v1/remember/entry", json=payload)
+        return _safe_json(resp)
 
     async def recall(
         self,
@@ -180,20 +215,16 @@ class CloudTransport:
             payload["top_k"] = top_k
         if session_id:
             payload["session_id"] = session_id
-        async with self._client() as c:
-            r = await c.post("/api/v1/recall", json=payload)
-            r.raise_for_status()
-            return _safe_json(r)
+        resp = await self._send("POST", "/api/v1/recall", json=payload)
+        return _safe_json(resp)
 
     async def cognify(self, datasets: Optional[list[str]] = None) -> dict:
         """POST /api/v1/cognify — (re)build & enrich the knowledge graph."""
         payload: dict[str, Any] = {}
         if datasets:
             payload["datasets"] = datasets
-        async with self._client(timeout=300.0) as c:
-            r = await c.post("/api/v1/cognify", json=payload)
-            r.raise_for_status()
-            return _safe_json(r)
+        resp = await self._send("POST", "/api/v1/cognify", json=payload, timeout=300.0)
+        return _safe_json(resp)
 
     async def forget(
         self,
@@ -215,30 +246,34 @@ class CloudTransport:
             payload["dataId"] = str(data_id)
         if memory_only:
             payload["memoryOnly"] = True
-        async with self._client() as c:
-            r = await c.post("/api/v1/forget", json=payload)
-            r.raise_for_status()
-            return _safe_json(r)
+        resp = await self._send("POST", "/api/v1/forget", json=payload)
+        return _safe_json(resp)
 
     async def list_datasets(self) -> list[dict]:
-        async with self._client(timeout=30.0) as c:
-            r = await c.get("/api/v1/datasets")
-            r.raise_for_status()
-            data = _safe_json(r)
-            return data if isinstance(data, list) else data.get("datasets", [])
+        resp = await self._send("GET", "/api/v1/datasets", idempotent=True, timeout=30.0)
+        data = _safe_json(resp)
+        return data if isinstance(data, list) else data.get("datasets", [])
 
     async def dataset_graph(self, dataset_id: str) -> dict:
-        async with self._client(timeout=60.0) as c:
-            r = await c.get(f"/api/v1/datasets/{dataset_id}/graph")
-            r.raise_for_status()
-            return _safe_json(r)
+        resp = await self._send(
+            "GET", f"/api/v1/datasets/{dataset_id}/graph", idempotent=True, timeout=60.0
+        )
+        return _safe_json(resp)
 
     async def dataset_data(self, dataset_id: str) -> list[dict]:
-        async with self._client(timeout=30.0) as c:
-            r = await c.get(f"/api/v1/datasets/{dataset_id}/data")
-            r.raise_for_status()
-            data = _safe_json(r)
-            return data if isinstance(data, list) else []
+        resp = await self._send(
+            "GET", f"/api/v1/datasets/{dataset_id}/data", idempotent=True, timeout=30.0
+        )
+        data = _safe_json(resp)
+        return data if isinstance(data, list) else []
+
+    async def data_raw(self, dataset_id: str, data_id: str) -> str:
+        """Fetch a data record's raw text — used to label memories meaningfully."""
+        resp = await self._send(
+            "GET", f"/api/v1/datasets/{dataset_id}/data/{data_id}/raw",
+            idempotent=True, timeout=30.0,
+        )
+        return resp.text
 
 
 def _safe_json(resp) -> Any:
@@ -389,6 +424,8 @@ class CogneeClient:
         self._configured = False
         # Resolved dataset name -> dataset_id (UUID) cache for cloud mode.
         self._dataset_ids: dict[str, str] = {}
+        # data_id -> human label cache (avoids refetching raw content).
+        self._label_cache: dict[str, str] = {}
 
         self.cloud: Optional[CloudTransport] = None
         if self.mode == "cloud":
@@ -668,15 +705,33 @@ class CogneeClient:
                 ds_id = await self._resolve_dataset_id(self.default_dataset)
                 if ds_id:
                     rows = await self.cloud.dataset_data(ds_id)
-                    return [
-                        {"id": str(r.get("id")), "label": r.get("name") or str(r.get("id"))[:40]}
-                        for r in rows
-                        if r.get("id")
-                    ]
+                    out: list[dict] = []
+                    for r in rows:
+                        rid = r.get("id")
+                        if not rid:
+                            continue
+                        out.append({"id": str(rid), "label": await self._memory_label(ds_id, r)})
+                    return out
             except Exception as exc:  # noqa: BLE001
                 logger.info("cloud list_memories failed, using mirror: %s", exc)
             return self.graph.documents()
         return self.graph.documents()
+
+    async def _memory_label(self, dataset_id: str, record: dict) -> str:
+        """A human-friendly label for a memory — the note's own text when we can
+        fetch it (the raw filename is an unhelpful 'data')."""
+        rid = str(record.get("id"))
+        if rid in self._label_cache:
+            return self._label_cache[rid]
+        label = record.get("name") or rid[:40]
+        try:
+            raw = (await self.cloud.data_raw(dataset_id, rid)).strip().replace("\n", " ")
+            if raw:
+                label = (raw[:60] + "…") if len(raw) > 60 else raw
+        except Exception:  # noqa: BLE001
+            pass  # fall back to the record name
+        self._label_cache[rid] = label
+        return label
 
     # -- graph (for visualization) ---------------------------------------
     async def get_graph(self) -> dict:
@@ -685,14 +740,17 @@ class CogneeClient:
                 ds_id = await self._resolve_dataset_id(self.default_dataset)
                 if ds_id:
                     data = await self.cloud.dataset_graph(ds_id)
-                    nodes = [
-                        {
-                            "id": str(n.get("id")),
-                            "label": str(n.get("label") or n.get("id"))[:48],
-                            "type": n.get("type", "entity"),
-                        }
-                        for n in data.get("nodes", [])
-                    ]
+                    nodes = []
+                    kept: set[str] = set()
+                    for n in data.get("nodes", []):
+                        label = str(n.get("label") or n.get("id"))
+                        ntype = str(n.get("type", "entity"))
+                        if _is_structural(label, ntype):
+                            continue
+                        nid = str(n.get("id"))
+                        kept.add(nid)
+                        nodes.append({"id": nid, "label": label[:48], "type": ntype})
+                    # Keep only edges whose endpoints both survived the filter.
                     edges = [
                         {
                             "source": str(e.get("source")),
@@ -700,6 +758,7 @@ class CogneeClient:
                             "label": e.get("label", ""),
                         }
                         for e in data.get("edges", [])
+                        if str(e.get("source")) in kept and str(e.get("target")) in kept
                     ]
                     if nodes:
                         return {"nodes": nodes, "edges": edges}
@@ -750,6 +809,24 @@ _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 
 def _looks_like_uuid(value: str) -> bool:
     return bool(_UUID_RE.match(str(value or "")))
+
+
+# Internal Cognee graph node kinds that are plumbing, not knowledge — hidden
+# from the visualization so the graph reads as entities + relationships.
+_STRUCTURAL_PREFIXES = ("documentchunk", "textsummary", "textdocument", "document_", "chunk_")
+_STRUCTURAL_TYPES = {"documentchunk", "textsummary", "textdocument", "document"}
+_STRUCTURAL_LABELS = {"data", "text", "data.txt"}
+
+
+def _is_structural(label: str, ntype: str) -> bool:
+    low = label.strip().lower()
+    if low in _STRUCTURAL_LABELS:
+        return True
+    if low.startswith(_STRUCTURAL_PREFIXES):
+        return True
+    if ntype.strip().lower() in _STRUCTURAL_TYPES:
+        return True
+    return False
 
 
 def _status_code(exc: Exception) -> Optional[int]:

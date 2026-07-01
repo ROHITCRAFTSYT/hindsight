@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0710"/>
+      <stop offset="1" stop-color="#120a1c"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff4dd2"/>
+      <stop offset="0.5" stop-color="#9d4edd"/>
+      <stop offset="1" stop-color="#25f4ee"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <ellipse cx="820" cy="20" rx="360" ry="200" fill="#9d4edd" opacity="0.10"/>
+  <ellipse cx="120" cy="520" rx="320" ry="180" fill="#25f4ee" opacity="0.08"/>
+
+  <text x="40" y="52" font-size="30" font-weight="700" fill="url(#brand)">Hindsight</text>
+  <text x="42" y="76" font-size="13" fill="#a99fc4">architecture · one integration point, three runtime modes</text>
+
+  <!-- ── Column 1: React UI ── -->
+  <g>
+    <rect x="40" y="110" width="250" height="330" rx="16" fill="#1c122c" fill-opacity="0.72" stroke="#25f4ee" stroke-opacity="0.4"/>
+    <text x="60" y="142" font-size="16" font-weight="700" fill="#ece7f5">React + Vite UI</text>
+    <text x="60" y="162" font-size="11.5" fill="#a99fc4">browser · same-origin /api</text>
+    <g font-size="12.5" fill="#ece7f5">
+      <rect x="60" y="180" width="210" height="42" rx="9" fill="#0a0710" stroke="#2bd576" stroke-opacity="0.5"/>
+      <text x="74" y="200" fill="#2bd576" font-weight="700">🟢 Ingest panel</text>
+      <text x="74" y="215" font-size="11" fill="#a99fc4">drop text · files · URLs</text>
+
+      <rect x="60" y="230" width="210" height="42" rx="9" fill="#0a0710" stroke="#25f4ee" stroke-opacity="0.5"/>
+      <text x="74" y="250" fill="#25f4ee" font-weight="700">🔵 Recall chat</text>
+      <text x="74" y="265" font-size="11" fill="#a99fc4">ask, with 👍/👎 + Memify ✨</text>
+
+      <rect x="60" y="282" width="210" height="42" rx="9" fill="#0a0710" stroke="#9d4edd" stroke-opacity="0.5"/>
+      <text x="74" y="302" fill="#9d4edd" font-weight="700">🕸️ Knowledge graph</text>
+      <text x="74" y="317" font-size="11" fill="#a99fc4">live force-directed viz</text>
+
+      <rect x="60" y="334" width="210" height="42" rx="9" fill="#0a0710" stroke="#ff5d6c" stroke-opacity="0.5"/>
+      <text x="74" y="354" fill="#ff5d6c" font-weight="700">🔴 Forget panel</text>
+      <text x="74" y="369" font-size="11" fill="#a99fc4">prune stale memories</text>
+    </g>
+    <text x="60" y="410" font-size="11" fill="#a99fc4">GraphView · IngestPanel ·</text>
+    <text x="60" y="426" font-size="11" fill="#a99fc4">RecallPanel · MemoryPanel</text>
+  </g>
+
+  <!-- ── Column 2: FastAPI ── -->
+  <g>
+    <rect x="355" y="110" width="250" height="330" rx="16" fill="#1c122c" fill-opacity="0.72" stroke="#9d4edd" stroke-opacity="0.5"/>
+    <text x="375" y="142" font-size="16" font-weight="700" fill="#ece7f5">FastAPI backend</text>
+    <text x="375" y="162" font-size="11.5" fill="#a99fc4">app/ · cognee_client.py</text>
+    <g font-size="12" fill="#ece7f5">
+      <text x="375" y="192" font-family="monospace">POST /api/remember</text>
+      <text x="375" y="214" font-family="monospace">POST /api/recall</text>
+      <text x="375" y="236" font-family="monospace">POST /api/improve</text>
+      <text x="375" y="258" font-family="monospace">POST /api/improve/enrich</text>
+      <text x="375" y="280" font-family="monospace">POST /api/forget</text>
+      <text x="375" y="302" font-family="monospace">GET&#160;&#160;/api/graph</text>
+      <text x="375" y="324" font-family="monospace">GET&#160;&#160;/api/memories</text>
+      <text x="375" y="346" font-family="monospace">GET&#160;&#160;/api/health</text>
+    </g>
+    <rect x="375" y="366" width="210" height="56" rx="9" fill="#0a0710" stroke="#9d4edd" stroke-opacity="0.4"/>
+    <text x="389" y="386" font-size="11.5" font-weight="700" fill="#ece7f5">mode auto-detect</text>
+    <text x="389" y="404" font-size="10.5" fill="#a99fc4">CloudTransport · SDK · demo mirror</text>
+  </g>
+
+  <!-- ── Column 3: Cognee Cloud ── -->
+  <g>
+    <rect x="670" y="110" width="250" height="330" rx="16" fill="#1c122c" fill-opacity="0.72" stroke="#25f4ee" stroke-opacity="0.5"/>
+    <text x="690" y="142" font-size="16" font-weight="700" fill="#ece7f5">Cognee Cloud</text>
+    <text x="690" y="162" font-size="11.5" fill="#a99fc4">REST · header X-Api-Key</text>
+    <g font-size="11.5" fill="#ece7f5" font-family="monospace">
+      <text x="690" y="192">/api/v1/remember</text>
+      <text x="690" y="214">/api/v1/recall</text>
+      <text x="690" y="236">/api/v1/remember/entry</text>
+      <text x="690" y="258">/api/v1/cognify</text>
+      <text x="690" y="280">/api/v1/forget</text>
+      <text x="690" y="302">/api/v1/datasets/{id}/graph</text>
+    </g>
+    <rect x="690" y="322" width="210" height="100" rx="9" fill="#0a0710" stroke="#25f4ee" stroke-opacity="0.35"/>
+    <text x="704" y="344" font-size="11.5" font-weight="700" fill="#25f4ee">hybrid graph + vector store</text>
+    <text x="704" y="364" font-size="10.5" fill="#a99fc4">LLM entity + relation extraction</text>
+    <text x="704" y="382" font-size="10.5" fill="#a99fc4">graph db · vector db · sessions</text>
+    <text x="704" y="404" font-size="10.5" fill="#a99fc4">feedback-weighted recall</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke-width="2" fill="none">
+    <line x1="290" y1="250" x2="352" y2="250" stroke="#25f4ee" opacity="0.8"/>
+    <polygon points="352,250 342,245 342,255" fill="#25f4ee"/>
+    <line x1="605" y1="250" x2="667" y2="250" stroke="#9d4edd" opacity="0.8"/>
+    <polygon points="667,250 657,245 657,255" fill="#9d4edd"/>
+  </g>
+  <text x="298" y="242" font-size="10.5" fill="#a99fc4">HTTP / JSON</text>
+  <text x="612" y="242" font-size="10.5" fill="#a99fc4">Cognee REST</text>
+
+  <!-- modes legend -->
+  <g font-size="11" transform="translate(40,462)">
+    <rect x="0" y="0" width="880" height="52" rx="12" fill="#0a0710" stroke="#9d4edd" stroke-opacity="0.25"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#ece7f5">runtime modes</text>
+    <circle cx="150" cy="18" r="5" fill="#25f4ee"/><text x="162" y="22" fill="#ece7f5">cloud</text>
+    <text x="162" y="38" fill="#a99fc4" font-size="10">COGNEE_CLOUD_API_KEY → Cognee Cloud REST</text>
+    <circle cx="430" cy="18" r="5" fill="#2bd576"/><text x="442" y="22" fill="#ece7f5">local</text>
+    <text x="442" y="38" fill="#a99fc4" font-size="10">LLM_API_KEY → embedded Cognee SDK</text>
+    <circle cx="700" cy="18" r="5" fill="#ffb703"/><text x="712" y="22" fill="#ece7f5">demo</text>
+    <text x="712" y="38" fill="#a99fc4" font-size="10">no keys → in-memory mock</text>
+  </g>
+</svg>
