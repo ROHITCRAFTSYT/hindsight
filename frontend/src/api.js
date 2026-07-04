@@ -21,8 +21,10 @@ export const api = {
   health: () => get("/api/health"),
   graph: () => get("/api/graph"),
   memories: () => get("/api/memories"),
+  recap: () => get("/api/recap"),
   remember: (data, dataset = "main") => post("/api/remember", { data, dataset }),
-  recall: (query, search_type) => post("/api/recall", { query, search_type, top_k: 10 }),
+  recall: (query, search_type, node_name) =>
+    post("/api/recall", { query, search_type, top_k: 10, node_name }),
   improve: (query, answer, vote, note) => post("/api/improve", { query, answer, vote, note }),
   improveEnrich: (dataset) => post("/api/improve/enrich", { dataset }),
   forget: ({ node_id, dataset, all } = {}) => post("/api/forget", { node_id, dataset, all }),

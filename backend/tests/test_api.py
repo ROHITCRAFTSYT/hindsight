@@ -73,6 +73,38 @@ def test_enrich_memify_is_accepted():
     assert r.json()["ok"] is True
 
 
+def test_recap_summarizes_memory():
+    client.post("/api/remember", json={"data": "Marie Curie discovered radium in Paris."})
+    r = client.get("/api/recap")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["memory_count"] == 1
+    assert body["node_count"] >= 1
+    assert body["summary"]
+    # Connected entities should surface as top memories.
+    assert any(e["connections"] >= 1 for e in body["top_entities"])
+
+
+def test_recap_on_empty_memory():
+    r = client.get("/api/recap")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["memory_count"] == 0
+    assert body["node_count"] == 0
+    assert "Nothing in memory" in body["summary"]
+
+
+def test_recall_accepts_node_name_scope():
+    client.post("/api/remember", json={"data": "Nikola Tesla pioneered alternating current."})
+    r = client.post(
+        "/api/recall",
+        json={"query": "What do I know about Tesla?", "node_name": ["nikola tesla"]},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+
 def test_forget_shrinks_the_graph():
     client.post("/api/remember", json={"data": "Temporary note about Vegas."})
     before = len(client.get("/api/graph").json()["nodes"])

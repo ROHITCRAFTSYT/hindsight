@@ -56,9 +56,11 @@ convertible`, all tied to the `wemakedevs cognee hackathon`.
 ## ✨ Why it stands out
 
 - **Effective use of Cognee's memory APIs** — all four lifecycle ops are first-class, user-triggered UI actions, not buried calls. Verified end-to-end against a **live Cognee Cloud tenant**.
-- **Killer demo** — a force-directed knowledge graph that **grows as you remember and shrinks as you forget**, in real time.
+- **🌅 The Morning-After Recap** — one click generates a briefing of everything in memory: an LLM summary grounded in the graph (`recall`), the most-connected entities (graph analytics), and memory/feedback stats. The anti-hangover, as a feature.
+- **Entity-scoped recall** — click any node in the graph and *ask about it*: the question is scoped to that entity with Cognee's `node_name` retrieval filter, not just string matching.
+- **Killer demo** — a force-directed knowledge graph that **grows as you remember and shrinks as you forget**, with entities colored by their extracted type (person, location, event, …), neighborhood highlighting on hover, and per-node actions.
 - **Real impact** — a genuinely useful personal-knowledge tool; the pattern generalizes to any agent that needs durable memory.
-- **Production-minded** — Dockerized, CI-gated (lint + tests + build), three runtime modes, graceful cold-start handling.
+- **Production-minded** — Dockerized, CI-gated (lint + tests + build), three runtime modes, cold-start retries, idempotent dedup handling, and a record-by-record wipe fallback for cloud edge cases.
 - **Runs anywhere** — Cognee Cloud, fully self-hosted, or a **zero-key demo mode** so judges can click around in seconds.
 
 ---
@@ -137,10 +139,11 @@ DEMO_MODE=true
 | Method | Endpoint | Lifecycle | Body |
 |--------|----------|-----------|------|
 | `POST` | `/api/remember` | remember | `{ "data": "...", "dataset": "main" }` |
-| `POST` | `/api/recall` | recall | `{ "query": "...", "search_type"?: "GRAPH_COMPLETION", "top_k"?: 10 }` |
+| `POST` | `/api/recall` | recall | `{ "query": "...", "search_type"?: "GRAPH_COMPLETION", "top_k"?: 10, "node_name"?: ["alex"] }` |
 | `POST` | `/api/improve` | improve | `{ "query": "...", "answer": "...", "vote": "up"\|"down", "note"?: "..." }` |
 | `POST` | `/api/improve/enrich` | improve | `{ "dataset"?: "main" }` — the Memify ✨ pass |
 | `POST` | `/api/forget` | forget | `{ "node_id"?: "<data_id>", "dataset"?: "...", "all"?: false }` |
+| `GET`  | `/api/recap` | — | 🌅 Morning-After briefing: summary, top entities, stats |
 | `GET`  | `/api/memories` | — | `{ memories: [{ id, label }] }` — the Forget panel |
 | `GET`  | `/api/graph` | — | `{ nodes, edges }` for the live visualization |
 | `GET`  | `/api/health` | — | mode + cloud connectivity |

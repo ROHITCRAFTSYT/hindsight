@@ -18,8 +18,8 @@ Open the app. Point out the three panels and the mode badge (Cognee Cloud).
 **0:35 — 🔵 Recall (30s)**
 - Ask: *"Who rented the car, and what else happened in Vegas?"*
 - Show the answer + cited sources + the `GRAPH_COMPLETION` search type.
-- "It didn't keyword-match — it reasoned over the graph. Notice it connects Alex → car → Vegas → Friday across separate notes."
-- Switch the SearchType dropdown to show INSIGHTS / RAG_COMPLETION options.
+- "It didn't keyword-match — it reasoned over the graph. Notice it connects Alex → car → Vegas across separate notes."
+- **Click the `alex` node in the graph → "Ask about this."** "That question is scoped to the entity itself with Cognee's `node_name` filter — the graph *is* the query interface."
 
 **1:05 — 🟣 Improve (25s)**
 - Hit 👍 on a good answer / 👎 on a weak one. "Each vote is stored as a typed Q&A-with-feedback entry on Cognee Cloud, so the next recall re-weights toward what you confirmed."
@@ -29,7 +29,10 @@ Open the app. Point out the three panels and the mode badge (Cognee Cloud).
 - In the Forget panel, click **forget** on a stale memory (sends its Cognee `data_id` to `forget()`); watch the graph shrink. Or **Wipe all memory** to reset live.
 - "Stale or wrong? One click and it's surgically pruned. The graph updates instantly."
 
-**1:45 — The close (15s)**
+**1:50 — 🌅 The Morning After (15s)**
+- Hit **Recap 🌅**. "And when you *do* wake up fuzzy — one click, and your second brain briefs you: what it knows, who matters most, how connected it all is. The anti-hangover."
+
+**2:05 — The close (10s)**
 - "Same code runs on Cognee Cloud or fully self-hosted — one env var. Open source, MIT. Remember, recall, improve, forget — the entire memory lifecycle, made visible. An AI that doesn't wake up with amnesia."
 
 ---

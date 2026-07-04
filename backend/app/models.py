@@ -35,6 +35,9 @@ class RecallRequest(BaseModel):
     top_k: int = Field(10, ge=1, le=50)
     session_id: Optional[str] = None
     dataset: Optional[str] = None
+    node_name: Optional[list[str]] = Field(
+        None, description="Scope retrieval to these named graph entities (Cognee node_name filter)."
+    )
 
 
 class RecallSource(BaseModel):
@@ -87,6 +90,22 @@ class Memory(BaseModel):
 
 class MemoriesResponse(BaseModel):
     memories: list[Memory] = []
+
+
+class RecapEntity(BaseModel):
+    label: str
+    connections: int
+
+
+class RecapResponse(BaseModel):
+    ok: bool
+    summary: str
+    top_entities: list[RecapEntity] = []
+    memory_count: int
+    node_count: int
+    edge_count: int
+    feedback_count: int
+    mode: str
 
 
 class GraphNode(BaseModel):

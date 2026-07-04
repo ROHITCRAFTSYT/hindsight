@@ -26,6 +26,7 @@ from .models import (  # noqa: E402
     MemoriesResponse,
     RecallRequest,
     RecallResponse,
+    RecapResponse,
     RememberRequest,
     RememberResponse,
 )
@@ -84,6 +85,7 @@ async def recall(req: RecallRequest) -> RecallResponse:
         top_k=req.top_k,
         session_id=req.session_id,
         dataset=req.dataset,
+        node_name=req.node_name,
     )
     return RecallResponse(
         ok=True,
@@ -111,6 +113,13 @@ async def improve_enrich(req: ImproveEnrichRequest) -> ImproveResponse:
 @app.get("/api/memories", response_model=MemoriesResponse)
 async def memories() -> MemoriesResponse:
     return MemoriesResponse(memories=await client.list_memories())
+
+
+@app.get("/api/recap", response_model=RecapResponse)
+async def recap() -> RecapResponse:
+    """The Morning-After briefing — a one-shot recap of everything in memory."""
+    result = await client.recap()
+    return RecapResponse(ok=True, **result)
 
 
 @app.post("/api/forget", response_model=ForgetResponse)

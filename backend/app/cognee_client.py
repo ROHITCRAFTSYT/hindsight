@@ -205,6 +205,7 @@ class CloudTransport:
         top_k: int = 10,
         datasets: Optional[list[str]] = None,
         session_id: Optional[str] = None,
+        node_name: Optional[list[str]] = None,
     ) -> Any:
         payload: dict[str, Any] = {"query": query_text}
         if search_type:
@@ -215,6 +216,9 @@ class CloudTransport:
             payload["top_k"] = top_k
         if session_id:
             payload["session_id"] = session_id
+        if node_name:
+            # Scope retrieval to specific named graph entities.
+            payload["node_name"] = node_name
         resp = await self._send("POST", "/api/v1/recall", json=payload)
         return _safe_json(resp)
 
@@ -495,8 +499,18 @@ class CogneeClient:
                 ds_id = _find_id(resp, ("dataset_id", "datasetId"))
                 if ds_id:
                     self._dataset_ids[dataset] = str(ds_id)
+                await self._register_label(dataset, data)
                 return {"detail": f"remembered into '{dataset}' on Cognee Cloud", "nodes_added": nodes_added}
             except Exception as exc:  # noqa: BLE001
+                # 409 = identical content already in memory (Cognee dedups by
+                # hash) — that's idempotent success, not an error. Don't
+                # register a label: the matching record is an OLD row, not the
+                # newest unlabeled one.
+                if _status_code(exc) == 409:
+                    return {
+                        "detail": f"already remembered in '{dataset}' (deduplicated)",
+                        "nodes_added": nodes_added,
+                    }
                 logger.exception("cloud remember() failed; mirror still updated: %s", exc)
                 return {"detail": f"cloud error ({_short(exc)}); kept in local graph", "nodes_added": nodes_added}
 
@@ -522,6 +536,7 @@ class CogneeClient:
     async def recall(
         self, query: str, search_type: Optional[str] = None, top_k: int = 10,
         session_id: Optional[str] = None, dataset: Optional[str] = None,
+        node_name: Optional[list[str]] = None,
     ) -> dict:
         effective_type = (search_type or "GRAPH_COMPLETION").upper()
         ds = dataset or self.default_dataset
@@ -531,6 +546,7 @@ class CogneeClient:
                 results = await self.cloud.recall(
                     query_text=query, search_type=effective_type, top_k=top_k,
                     datasets=[ds], session_id=session_id or self.session_id,
+                    node_name=node_name,
                 )
                 out = _normalize_results(results, effective_type)
                 out["search_type"] = f"cloud:{effective_type}"
@@ -552,6 +568,8 @@ class CogneeClient:
                         kwargs["session_id"] = session_id
                     if dataset:
                         kwargs["datasets"] = [dataset]
+                    if node_name:
+                        kwargs["node_name"] = node_name
                     results = await cognee.recall(**kwargs)  # type: ignore
                 else:
                     results = await cognee.search(query_type=st, query_text=query)  # type: ignore
@@ -661,8 +679,20 @@ class CogneeClient:
         if self.is_cloud:
             try:
                 if all:
-                    await self.cloud.forget(everything=True)
-                    return {"detail": "wiped all memory on Cognee Cloud", "nodes_removed": removed}
+                    try:
+                        await self.cloud.forget(everything=True)
+                        return {"detail": "wiped all memory on Cognee Cloud", "nodes_removed": removed}
+                    except Exception as exc:  # noqa: BLE001
+                        # Some tenant builds 500 on bulk deletion — fall back
+                        # to deleting record by record.
+                        logger.info(
+                            "forget(everything) failed (%s); deleting per record", _short(exc)
+                        )
+                        deleted = await self._forget_all_records()
+                        return {
+                            "detail": f"wiped memory record-by-record ({deleted} records)",
+                            "nodes_removed": removed,
+                        }
                 if node_id and _looks_like_uuid(node_id):
                     # This build requires data_id + dataset together.
                     await self.cloud.forget(data_id=node_id, dataset=dataset or self.default_dataset)
@@ -698,6 +728,25 @@ class CogneeClient:
 
         return {"detail": f"[demo] forgot {removed} node(s)", "nodes_removed": removed}
 
+    async def _forget_all_records(self) -> int:
+        """Fallback wipe: delete every data record across every dataset."""
+        deleted = 0
+        for ds in await self.cloud.list_datasets():
+            ds_id, ds_name = str(ds.get("id")), ds.get("name") or ""
+            try:
+                rows = await self.cloud.dataset_data(ds_id)
+            except Exception:  # noqa: BLE001
+                continue
+            for row in rows:
+                rid = str(row.get("id"))
+                try:
+                    await self.cloud.forget(data_id=rid, dataset=ds_name)
+                    deleted += 1
+                    self._label_cache.pop(rid, None)
+                except Exception as exc:  # noqa: BLE001
+                    logger.info("per-record forget failed for %s: %s", rid, _short(exc))
+        return deleted
+
     # -- memories list (the Forget panel's source of truth) --------------
     async def list_memories(self) -> list[dict]:
         if self.is_cloud:
@@ -717,21 +766,107 @@ class CogneeClient:
             return self.graph.documents()
         return self.graph.documents()
 
+    async def _register_label(self, dataset: str, data: str) -> None:
+        """Pair the just-ingested text with its cloud data record.
+
+        Cognee stores uploads under a generic filename ('data'), and tenant
+        pods can lose raw files across restarts — so the reliable moment to
+        capture a human label is ingest time, when we still hold the text.
+        """
+        try:
+            ds_id = self._dataset_ids.get(dataset) or await self._resolve_dataset_id(dataset)
+            if not ds_id:
+                return
+            rows = await self.cloud.dataset_data(ds_id)
+            unlabeled = [r for r in rows if str(r.get("id")) not in self._label_cache]
+            if not unlabeled:
+                return
+            newest = max(unlabeled, key=lambda r: str(r.get("createdAt") or ""))
+            snippet = data.strip().replace("\n", " ")
+            self._label_cache[str(newest.get("id"))] = (
+                (snippet[:60] + "…") if len(snippet) > 60 else snippet
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.info("could not register memory label: %s", exc)
+
     async def _memory_label(self, dataset_id: str, record: dict) -> str:
-        """A human-friendly label for a memory — the note's own text when we can
-        fetch it (the raw filename is an unhelpful 'data')."""
+        """A human-friendly label for a memory.
+
+        Preference order: label registered at ingest time -> raw content
+        fetched from the cloud -> a readable short-id fallback (the stored
+        filename is an unhelpful 'data')."""
         rid = str(record.get("id"))
         if rid in self._label_cache:
             return self._label_cache[rid]
-        label = record.get("name") or rid[:40]
         try:
             raw = (await self.cloud.data_raw(dataset_id, rid)).strip().replace("\n", " ")
             if raw:
                 label = (raw[:60] + "…") if len(raw) > 60 else raw
+                # Cache only successful fetches — a cold-start failure must not
+                # pin a fallback label forever.
+                self._label_cache[rid] = label
+                return label
         except Exception:  # noqa: BLE001
-            pass  # fall back to the record name
-        self._label_cache[rid] = label
-        return label
+            pass  # raw file may be gone (pod restarts wipe tenant disk)
+        name = record.get("name") or ""
+        if name and name.lower() not in {"data", "text", "data.txt"}:
+            return name
+        return f"memory {rid[:8]}"
+
+    # -- recap ("The Morning After" briefing) -----------------------------
+    async def recap(self) -> dict:
+        """One-shot briefing over everything in memory.
+
+        Combines a real recall() summary with graph analytics (top entities
+        by connectivity) and memory/feedback counts — the anti-hangover
+        morning-after report.
+        """
+        graph = await self.get_graph()
+        memories = await self.list_memories()
+
+        # Top entities by degree (EntityType/kind nodes excluded — they are
+        # categories, not knowledge).
+        degree: dict[str, int] = {}
+        for e in graph["edges"]:
+            degree[e["source"]] = degree.get(e["source"], 0) + 1
+            degree[e["target"]] = degree.get(e["target"], 0) + 1
+        kind_ids = {n["id"] for n in graph["nodes"] if n.get("type") == "EntityType"}
+        entities = [
+            {"label": n["label"], "connections": degree.get(n["id"], 0)}
+            for n in graph["nodes"]
+            if n["id"] not in kind_ids and degree.get(n["id"], 0) > 0
+        ]
+        entities.sort(key=lambda x: -x["connections"])
+        top_entities = entities[:8]
+
+        if not graph["nodes"] and not memories:
+            summary = (
+                "Nothing in memory yet — a truly blank morning. "
+                "Remember a few things and check back."
+            )
+        elif self.is_real:
+            result = await self.recall(
+                "Give me a concise morning-after recap of everything you remember: "
+                "the key people, places, plans, and facts, in 2-4 sentences.",
+                search_type="GRAPH_COMPLETION",
+            )
+            summary = result["answer"]
+        else:
+            docs = self.graph.documents()
+            summary = (
+                f"You remembered {len(docs)} thing(s). Highlights: "
+                + "; ".join(d["label"] for d in docs[:3])
+            )
+
+        return {
+            "summary": summary,
+            "top_entities": top_entities,
+            "memory_count": len(memories),
+            "node_count": len(graph["nodes"]),
+            "edge_count": len(graph["edges"]),
+            "feedback_count": len(self.graph.feedback),
+            "mode": self.mode,
+        }
 
     # -- graph (for visualization) ---------------------------------------
     async def get_graph(self) -> dict:

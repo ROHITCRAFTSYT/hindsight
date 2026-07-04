@@ -4,6 +4,7 @@ import GraphView from "./components/GraphView.jsx";
 import IngestPanel from "./components/IngestPanel.jsx";
 import RecallPanel from "./components/RecallPanel.jsx";
 import MemoryPanel from "./components/MemoryPanel.jsx";
+import RecapModal from "./components/RecapModal.jsx";
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -11,7 +12,14 @@ export default function App() {
   const [memories, setMemories] = useState([]);
   const [messages, setMessages] = useState([]);
   const [toast, setToast] = useState(null);
-  const [busy, setBusy] = useState({ remember: false, recall: false, forget: false, memify: false });
+  const [recap, setRecap] = useState(null);
+  const [busy, setBusy] = useState({
+    remember: false,
+    recall: false,
+    forget: false,
+    memify: false,
+    recap: false,
+  });
 
   const flash = useCallback((msg) => {
     setToast(msg);
@@ -46,6 +54,17 @@ export default function App() {
     }
   };
 
+  const handleRecap = async () => {
+    setBusy((b) => ({ ...b, recap: true }));
+    try {
+      setRecap(await api.recap());
+    } catch (e) {
+      flash("⚠️ recap failed");
+    } finally {
+      setBusy((b) => ({ ...b, recap: false }));
+    }
+  };
+
   const handleRemember = async (data, dataset) => {
     setBusy((b) => ({ ...b, remember: true }));
     try {
@@ -59,12 +78,12 @@ export default function App() {
     }
   };
 
-  const handleRecall = async (query, searchType) => {
+  const handleRecall = async (query, searchType, nodeName) => {
     setBusy((b) => ({ ...b, recall: true }));
     const idx = messages.length;
-    setMessages((m) => [...m, { query, pending: true }]);
+    setMessages((m) => [...m, { query, pending: true, scoped: nodeName }]);
     try {
-      const res = await api.recall(query, searchType);
+      const res = await api.recall(query, searchType, nodeName);
       setMessages((m) =>
         m.map((msg, i) =>
           i === idx
@@ -73,6 +92,7 @@ export default function App() {
                 answer: res.answer,
                 sources: res.sources,
                 search_type: res.search_type,
+                scoped: nodeName,
                 pending: false,
               }
             : msg
@@ -99,6 +119,12 @@ export default function App() {
     } catch (e) {
       flash("⚠️ improve failed");
     }
+  };
+
+  const handleAskNode = (label) => {
+    // Entity-scoped recall: the query is scoped to this graph node via
+    // Cognee's node_name filter.
+    handleRecall(`What do I know about "${label}"?`, "GRAPH_COMPLETION", [label]);
   };
 
   const handleForgetNode = async (nodeId) => {
@@ -146,6 +172,9 @@ export default function App() {
         <button className="btn-memify" onClick={handleMemify} disabled={busy.memify} title="Run Cognee's enrichment pass over your memory">
           {busy.memify ? <span className="spinner" /> : "Memify ✨"}
         </button>
+        <button className="btn-recap" onClick={handleRecap} disabled={busy.recap} title="The Morning After — a one-shot recap of everything in memory">
+          {busy.recap ? <span className="spinner" /> : "Recap 🌅"}
+        </button>
         <div className="mode-badge">
           <span className={`mode-dot ${mode}`} />
           <span>
@@ -173,11 +202,11 @@ export default function App() {
           <div className="panel graph" style={{ flex: 1 }}>
             <div className="graph-overlay">
               <h2>🕸️ Knowledge graph</h2>
-              <p className="hint">Click a node to forget it</p>
+              <p className="hint">Click a node to ask about it — or forget it</p>
             </div>
-            <GraphView graph={graph} onForgetNode={handleForgetNode} />
+            <GraphView graph={graph} onForgetNode={handleForgetNode} onAskNode={handleAskNode} />
             <div className="graph-stats">
-              {graph.nodes.length} nodes · {graph.edges.length} edges
+              {graph.nodes.length} nodes · {graph.edges.length} edges · {memories.length} memories
             </div>
           </div>
         </div>
@@ -193,6 +222,7 @@ export default function App() {
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+      <RecapModal recap={recap} onClose={() => setRecap(null)} />
     </div>
   );
 }

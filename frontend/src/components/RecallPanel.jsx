@@ -45,7 +45,10 @@ export default function RecallPanel({ messages, onRecall, onVote, busy }) {
         )}
         {messages.map((m, i) => (
           <React.Fragment key={i}>
-            <div className="msg user">{m.query}</div>
+            <div className="msg user">
+              {m.query}
+              {m.scoped?.length > 0 && <span className="scope-chip">🎯 {m.scoped.join(", ")}</span>}
+            </div>
             <div className="msg ai">
               {m.pending ? <span className="spinner" /> : m.answer}
               {!m.pending && (
