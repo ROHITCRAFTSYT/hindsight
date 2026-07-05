@@ -1,85 +1,124 @@
-# Demo script
+# Demo video guide
 
-Runs about two and a half minutes. Spoken lines are in quotes; say them however feels natural, they're a guide, not a teleprompter.
+Everything you need to record the submission video in one clean take. The narration runs about 2 minutes 50 seconds, which leaves headroom under the 3 minute limit. Spoken lines are in quotes. Say them your way, they are a guide and not a teleprompter.
+
+The form wants the video to cover four things. This script hits all of them in order: what the project is, the tech stack and architecture, a live demo, and what you learned.
 
 ## Before you hit record
 
-- Backend running in cloud mode (`uvicorn app.main:app --port 8000`), frontend on `npm run dev`. Check the badge says "Cognee Cloud".
-- Remember one note ahead of time so the graph isn't empty when you start. An empty canvas is a boring first frame.
-- Have your second note ready to paste: `Priya booked the hotel rooms and Alex rented a red convertible in Las Vegas.`
-- Know the timing: cloud ingest takes about 20 seconds, recall about 10. The script talks over both waits. Don't stand there in silence.
-- If the tenant has been idle, the first request can fail once while it wakes up. The app retries on its own. Click, wait a beat, keep talking.
-- Keep `.env` out of frame.
+Record against the local app in Cognee Cloud mode. That shows the real integration, which is the whole point of the Cloud track. The deployed link at https://hindsight-phi.vercel.app is the keyless demo for judges to click later, but its answers are simpler, so it is not what you want on camera.
 
-## The script
+- Start the backend in cloud mode: `uvicorn app.main:app --port 8000`. Start the frontend: `npm run dev`. Confirm the badge in the top right says "Cognee Cloud".
+- Your `.env` is already set to the `vegas_trip` dataset, which is already populated with the Vegas story from testing. So the graph is full the moment you open the app and recall works right away.
+- Warm the tenant before recording. Run one recall ("Who rented the car?") and wait for the answer. Cognee Cloud pods sleep when idle and the first request after a nap can be slow or fail once. Waking it up now means it stays warm for the take.
+- Have one fresh note on your clipboard so you can show live ingestion: `Sam won 400 dollars at blackjack but lost it all on roulette.`
+- Close other tabs, hide bookmarks, and keep your `.env` and terminal off screen.
+- Screen record at 1080p. A headset mic beats laptop speakers.
 
-**0:00 — Hook**
+## Shot by shot
 
-> "Every AI assistant has the same problem: close the tab and it forgets everything. This hackathon's theme is an AI that woke up in Vegas with no memory of last night. So I built the opposite. Hindsight keeps its memory in Cognee, and it shows you that memory as a graph you can actually watch."
+| Time | On screen | What you click | The point you are making |
+|------|-----------|----------------|--------------------------|
+| 0:00 | Full app, graph already populated | nothing, let it breathe | What it is |
+| 0:20 | Same | nothing | Tech stack and architecture |
+| 0:40 | Remember panel | paste the Sam note, hit Remember | remember(), live graph growth |
+| 1:05 | Recall panel | type "Who rented the car?" | recall() reasons over the graph |
+| 1:25 | Graph | click the `alex` node, pick "Ask about this" | node_name scoped recall |
+| 1:50 | Recall answer | thumbs up, then Memify in the header | improve() feedback and enrichment |
+| 2:15 | Forget panel | delete one memory | forget() by record id |
+| 2:30 | Header | hit Recap | the morning-after briefing |
+| 2:45 | Same | nothing | Learnings and close |
 
-Show the app. Don't explain the panels yet, just let it sit on screen.
+## The narration
 
-**0:15 — 🟢 Remember**
+**0:00 — What it is**
 
-Paste the Vegas note, hit Remember.
+> "Every AI assistant has the same problem. Close the tab and it forgets everything you told it. This hackathon's theme was an AI that woke up in Vegas with no memory of last night, so I built the opposite. This is Hindsight. It's a second brain that keeps its memory in Cognee, and instead of hiding that memory in a database, it shows it to you as a graph you can watch and query."
 
-> "This is going to Cognee Cloud right now. It chunks the text, pulls out the entities, and wires them into a knowledge graph. Takes about twenty seconds because there's a real extraction pipeline behind it, so while that runs..."
+**0:20 — Tech stack and architecture**
 
-Point at the existing graph. Mention the colors: each entity is colored by the type Cognee extracted for it. Person, location, event. The legend is bottom-left. By the time you've said this, the new nodes should be landing.
+> "Quick look under the hood. The frontend is React and Vite. The backend is FastAPI, and it talks to Cognee Cloud over its REST API. Every button you're about to see maps to a real Cognee call. There's one integration file that auto-detects whether it's running against Cognee Cloud, a self-hosted Cognee, or a keyless demo mode, so the same code runs three ways. It's Dockerized, it has tests, and CI runs on every push."
 
-**0:45 — 🔵 Recall**
+**0:40 — Remember**
 
-Ask: *"Who rented the car?"*
+Paste the Sam note, hit Remember.
 
-> "Ten seconds or so... and there it is. Alex. It joined my two separate notes through the graph. A plain vector search wouldn't have made that connection."
+> "So let me add a memory. This goes straight to Cognee Cloud, which chunks the text, pulls out the entities, and wires them into the knowledge graph. It takes a moment because there's a real extraction pipeline behind it. While that runs, notice the graph is already full from earlier notes, and each entity is colored by the type Cognee gave it. People, places, events. There's the legend in the corner."
 
-Now click the `alex` node, pick "Ask about this".
+**1:05 — Recall**
 
-> "This is the part I like. Clicking a node scopes the question to that entity. Cognee has a node_name filter for exactly this, so the graph isn't just a picture. You can query through it."
+Type: *"Who rented the car?"*
 
-**1:20 — 🟣 Improve**
+> "Now let me ask it something. Who rented the car. And there it is. Alex. It pulled that from one note and connected it across others through the graph. A plain keyword search would have missed that."
 
-Thumbs-up the good answer.
+**1:25 — Scoped recall**
 
-> "That vote gets stored as a rated Q&A entry in the session, and future recalls lean toward answers I've confirmed."
+Click the `alex` node, pick "Ask about this".
 
-Hit the Memify button.
+> "Here's the part I like most. I can click a node in the graph and ask about it directly. That question is scoped to the Alex entity using Cognee's node_name filter. So the graph isn't just a picture of the memory. It's how you query it."
 
-> "Memify re-runs the enrichment pipeline over the whole dataset. New connections show up that weren't in any single note."
+**1:50 — Improve**
 
-**1:45 — 🔴 Forget**
+Thumbs up the answer, then hit Memify.
+
+> "If an answer is good, I tell it. That vote is stored as rated feedback so future recalls lean toward what I've confirmed. And this Memify button re-runs Cognee's enrichment over everything, which surfaces connections that weren't in any single note."
+
+**2:15 — Forget**
 
 Delete a memory from the Forget panel.
 
-> "And when something's stale or wrong, it goes. This calls Cognee's forget with the record id. Watch the graph, the nodes drop out."
+> "When something's wrong or stale, it goes. This calls Cognee's forget with the record id, and you can watch the nodes drop out of the graph live."
 
-**2:00 — Recap**
+**2:30 — Recap**
 
 Hit the Recap button.
 
-> "Last thing, and honestly my favorite. Recap asks the memory to brief me on everything it knows. A summary, the most connected entities, the counts. The theme is a hangover, so it needed a morning-after report."
+> "And the finale. Recap asks the memory to brief me on everything it knows. A summary, the most connected people and things, the counts. The theme was a hangover, so of course it needed a morning-after report."
 
-**2:20 — Close**
+**2:45 — Learnings and close**
 
-> "Everything you just saw ran against Cognee Cloud. The same code runs self-hosted with a local LLM, and there's a keyless demo mode if you just want to click around. MIT licensed. Thanks for watching."
+> "The biggest thing I learned was that building on a live memory layer means dealing with real edge cases. Cold starts, duplicate handling, a tenant that got into a bad state mid-week. Fixing those taught me how Cognee actually works far better than the docs did. It's open source and MIT licensed. Thanks for watching."
+
+## If something goes wrong on camera
+
+- Recall comes back empty or errors once: the tenant went cold. Wait five seconds and ask again, it retries on its own. This is why you warm it up first.
+- Ingestion hangs past 30 seconds: stop the take, run the query once in the terminal to confirm the tenant is up, then restart the take.
+- Worst case: record against https://hindsight-phi.vercel.app instead. It's seeded and instant. The answers are simpler but nothing will fail live.
+
+## YouTube title
+
+Pick one:
+
+- Hindsight: an AI second brain that never wakes up with amnesia (Cognee hackathon)
+- Building a second brain you can watch, on Cognee Cloud
+
+## YouTube description
+
+```
+Hindsight is an AI second brain built on Cognee's memory layer for the WeMakeDevs x Cognee "Hangover Part AI" hackathon.
+
+Drop in notes, files, or URLs and Hindsight stores them in Cognee as a knowledge graph you can actually see. Ask it anything and it answers by reasoning over the graph instead of matching keywords. Click a node to ask about that entity directly. Rate answers to shape future recalls. Delete what's stale and watch the graph shrink. And a one-click "Morning After" recap briefs you on everything it remembers.
+
+Every feature maps to a real Cognee Cloud call: remember, recall, feedback entries, cognify, forget, and the dataset graph export.
+
+Tech stack: React + Vite frontend, FastAPI backend, Cognee Cloud over REST. Runs against Cognee Cloud, self-hosted, or a keyless demo mode. Dockerized, tested, CI on every push.
+
+Live demo (keyless): https://hindsight-phi.vercel.app
+Code (MIT): https://github.com/ROHITCRAFTSYT/hindsight
+
+Built with Cognee. https://www.cognee.ai
+```
 
 ## How this maps to the judging criteria
 
-| Criterion | Where it shows up in the demo |
-|-----------|-------------------------------|
-| Impact | A personal memory tool people would actually use; the same pattern works for any agent that needs memory across sessions. |
+| Criterion | Where it shows up |
+|-----------|-------------------|
+| Impact | A personal memory tool people would actually use; the pattern works for any agent that needs memory across sessions. |
 | Creativity | The memory is visible. Most memory demos are a chat box; this one shows the graph growing, shrinking, and being queried directly. |
-| Technical | FastAPI + React, three runtime modes, cold-start retries, dedup handling, tests and CI. The recap and node-scoped recall aren't wrappers around one endpoint; they combine recall, graph analytics, and the node_name filter. |
-| Use of Cognee's APIs | remember, recall, remember/entry (feedback), cognify (Memify), forget, and the dataset graph export all fire from user actions during the demo. |
-| UX | One screen, four lifecycle actions, live graph. Nothing is buried in a settings page. |
-| Presentation | This script, the blog post, and the README with the animated demo. |
-
-## Track eligibility
-
-- Best Use of Cognee Cloud: the demo runs against a live tenant.
-- Best Use of Open Source: MIT licensed, runs fully self-hosted.
-- Best Blog: `docs/BLOG.md`.
-- Social Buzz: `docs/SOCIAL.md`.
+| Technical | FastAPI + React, three runtime modes, cold-start retries, dedup handling, tests and CI. Recap and node-scoped recall combine recall, graph analytics, and the node_name filter rather than wrapping a single endpoint. |
+| Use of Cognee's APIs | remember, recall, remember/entry feedback, cognify, forget, and the dataset graph export all fire from user actions during the demo. |
+| UX | One screen, four lifecycle actions, a live graph. Nothing buried in a settings page. |
+| Presentation | This script, the blog post, and the README with an animated demo. |
 
 ## One-liner
 
