@@ -27,6 +27,7 @@ mirror graph still updates, so a live demo never hard-crashes.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import re
@@ -43,6 +44,22 @@ logger = logging.getLogger("hindsight.cognee")
 
 def _truthy(val: Optional[str]) -> bool:
     return str(val or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+# On-theme "what happened in Vegas" memory used to pre-populate DEMO_MODE so the
+# public demo is never empty and recall works out of the box.
+DEMO_SEED_NOTES = [
+    "Hindsight is an AI second brain built on Cognee's memory layer for the "
+    "WeMakeDevs hackathon. It demonstrates remember, recall, improve, and forget.",
+    "On Friday night the team landed in Las Vegas and checked into The Mirage. "
+    "Priya booked the hotel rooms and Alex rented a red convertible.",
+    "Cognee converts text, files, and URLs into a hybrid graph and vector memory. "
+    "remember ingests data, recall answers questions, improve enriches memory.",
+    "At the blackjack table Sam won 400 dollars but later lost it on roulette. "
+    "Priya kept the receipt from the Bellagio fountain show.",
+    "The prize for Best Use of Cognee Cloud is an Apple iPhone 17 per team member. "
+    "Use code COGNEE-35 to redeem the free Cognee Cloud developer plan.",
+]
 
 
 def _cloud_base_url() -> str:
@@ -329,8 +346,13 @@ class MemoryGraph:
     feedback: list[dict] = field(default_factory=list)
 
     def add_document(self, text: str, dataset: str = "main") -> int:
-        doc_id = f"doc:{uuid.uuid4().hex[:8]}"
         snippet = text.strip().replace("\n", " ")
+        # Content-hashed id: deterministic across processes, so seeded demo
+        # memories get the same ids on every serverless instance (and re-adding
+        # the same text is idempotent rather than duplicating).
+        doc_id = "doc:" + hashlib.sha1(snippet.encode("utf-8")).hexdigest()[:10]
+        if doc_id in self.nodes:
+            return 0
         self.nodes[doc_id] = {
             "id": doc_id,
             "label": (snippet[:40] + "…") if len(snippet) > 40 else snippet or "memory",
@@ -437,6 +459,13 @@ class CogneeClient:
                 logger.error("httpx is required for cloud mode but is not installed.")
             else:
                 self.cloud = CloudTransport(_cloud_base_url(), os.getenv("COGNEE_CLOUD_API_KEY", ""))
+
+        # Demo mode has no backing store, and on serverless each request may hit
+        # a fresh process. Seeding at construction gives every instance the same
+        # populated graph, so recall/recap/graph are consistent everywhere.
+        if self.mode == "demo" and not _truthy(os.getenv("DEMO_NO_SEED")):
+            for note in DEMO_SEED_NOTES:
+                self.graph.add_document(note, dataset=self.default_dataset)
 
         logger.info(
             "Hindsight memory mode=%s | cloud_url=%s | cognee_imported=%s | lifecycle_api=%s",
@@ -830,11 +859,15 @@ class CogneeClient:
         for e in graph["edges"]:
             degree[e["source"]] = degree.get(e["source"], 0) + 1
             degree[e["target"]] = degree.get(e["target"], 0) + 1
-        kind_ids = {n["id"] for n in graph["nodes"] if n.get("type") == "EntityType"}
+        # Exclude category nodes (cloud "EntityType") and raw document nodes
+        # (demo "document") so only real entities are ranked.
+        skip_ids = {
+            n["id"] for n in graph["nodes"] if n.get("type") in ("EntityType", "document")
+        }
         entities = [
             {"label": n["label"], "connections": degree.get(n["id"], 0)}
             for n in graph["nodes"]
-            if n["id"] not in kind_ids and degree.get(n["id"], 0) > 0
+            if n["id"] not in skip_ids and degree.get(n["id"], 0) > 0
         ]
         entities.sort(key=lambda x: -x["connections"])
         top_entities = entities[:8]
