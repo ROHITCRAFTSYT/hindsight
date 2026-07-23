@@ -1,5 +1,5 @@
 # Hindsight backend — FastAPI over the Cognee memory lifecycle.
-FROM python:3.11-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
