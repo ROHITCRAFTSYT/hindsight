@@ -37,5 +37,5 @@ down: ## Stop the Docker stack
 	docker compose down
 
 clean: ## Remove build artifacts and caches
-	rm -rf frontend/dist backend/.pytest_cache
+	rm -rf frontend/dist backend/.pytest_cache backend/.ruff_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

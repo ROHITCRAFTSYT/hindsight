@@ -180,7 +180,7 @@ hindsight/
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx · api.js
-│   │   └── components/       # GraphView · RecallPanel · IngestPanel · MemoryPanel
+│   │   └── components/       # GraphView · RecallPanel · IngestPanel · MemoryPanel · RecapModal
 │   ├── Dockerfile · nginx.conf
 │   └── package.json
 ├── docs/
