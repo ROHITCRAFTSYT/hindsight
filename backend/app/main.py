@@ -37,10 +37,16 @@ app = FastAPI(
     version=__version__,
 )
 
-_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+# Never fall back to a wildcard: with allow_credentials=True, "*" would let any
+# origin make credentialed requests. An empty/blank CORS_ORIGINS falls back to
+# the local dev origin instead.
+_DEFAULT_ORIGIN = "http://localhost:5173"
+_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", _DEFAULT_ORIGIN).split(",") if o.strip()] or [
+    _DEFAULT_ORIGIN
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins or ["*"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
